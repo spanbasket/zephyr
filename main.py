@@ -27,7 +27,7 @@ async def on_ready():
 async def ping(ctx):
     await ctx.send("Pong! 🏓 Bot aktif ve çalışıyor.")
 
-# /start Komutu (Arka planda yine slash olarak kalabilir veya korunur)
+# /start Komutu
 @bot.tree.command(name="start", description="Botun durumunu kontrol eder.")
 async def slash_start(interaction: discord.Interaction):
     await interaction.response.send_message("🚀 Bot aktif, komut sistemi çalışıyor!", ephemeral=True)
@@ -78,10 +78,35 @@ async def logkur_error(ctx, error):
         await ctx.send("❌ Bu komutu kullanmak için **Yönetici** yetkisine sahip olmalısın!")
 
 # ==========================================
-# ! ÖN EKLİ MODERASYON KOMUTLARI
+# GELİŞMİŞ MODERASYON KOMUTLARI
 # ==========================================
 
-# 1. !ban Komutu
+# 1. !sil Komutu (Toplu Mesaj Silme)
+@bot.command(name="sil")
+@commands.has_permissions(manage_messages=True)
+async def cmd_sil(ctx, limit: int):
+    if limit < 1:
+        await ctx.send("❌ En az 1 mesaj silebilirsin!", delete_after=5)
+        return
+    
+    try:
+        # Komut mesajının kendisini de dahil ederek belirtilen sayı kadar mesajı siler
+        deleted = await ctx.channel.purge(limit=limit + 1)
+        msg = await ctx.send(f"🗑️ Başarıyla **{len(deleted) - 1}** adet mesaj temizlendi!")
+        await msg.delete(by_pass_perms=True, delay=4) # 4 saniye sonra bildirim mesajını da siler
+    except Exception as e:
+        await ctx.send(f"❌ Mesajlar silinemezken bir hata oluştu: {e}")
+
+@cmd_sil.error
+async def cmd_sil_error(ctx, error):
+    if isinstance(error, commands.MissingPermissions):
+        await ctx.send("❌ Bu komut için **Mesajları Yönet** yetkin olmalı!")
+    elif isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send("❌ Eksik kullanım! Örnek: `!sil 10`")
+    elif isinstance(error, commands.BadArgument):
+        await ctx.send("❌ Lütfen geçerli bir sayı yaz! Örnek: `!sil 5`")
+
+# 2. !ban Komutu
 @bot.command(name="ban")
 @commands.has_permissions(ban_members=True)
 async def cmd_ban(ctx, member: discord.Member, *, reason="Sebep belirtilmedi"):
@@ -106,7 +131,32 @@ async def cmd_ban_error(ctx, error):
     elif isinstance(error, commands.MissingRequiredArgument):
         await ctx.send("❌ Eksik kullanım! Örnek: `!ban @kullanici sebep`")
 
-# 2. !kick Komutu
+# 3. !unban Komutu (Yasak Kaldırma)
+@bot.command(name="unban")
+@commands.has_permissions(ban_members=True)
+async def cmd_unban(ctx, user_id: int):
+    try:
+        user = await bot.fetch_user(user_id)
+        await ctx.guild.unban(user)
+        await ctx.send(f"✅ **{user}** adlı kullanıcının yasağı kaldırıldı!")
+        
+        log_kanal = discord.utils.get(ctx.guild.text_channels, name="⛔・ban-log")
+        if log_kanal:
+            embed = discord.Embed(title="🟢 Üyenin Yasağı Kaldırıldı (Unban)", color=discord.Color.green())
+            embed.add_field(name="Kullanıcı", value=f"{user} (`{user.id}`)", inline=False)
+            embed.add_field(name="Yetkili", value=ctx.author.mention, inline=True)
+            await log_kanal.send(embed=embed)
+    except Exception as e:
+        await ctx.send(f"❌ Kullanıcıun yasağı kaldırılamadı! (ID'yi yanlış yazmış olabilirsin): {e}")
+
+@cmd_unban.error
+async def cmd_unban_error(ctx, error):
+    if isinstance(error, commands.MissingPermissions):
+        await ctx.send("❌ Bu komut için **Üyeleri Yasakla** yetkin olmalı!")
+    elif isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send("❌ Eksik kullanım! Örnek: `!unban 123456789012345678`")
+
+# 4. !kick Komutu
 @bot.command(name="kick")
 @commands.has_permissions(kick_members=True)
 async def cmd_kick(ctx, member: discord.Member, *, reason="Sebep belirtilmedi"):
@@ -131,7 +181,7 @@ async def cmd_kick_error(ctx, error):
     elif isinstance(error, commands.MissingRequiredArgument):
         await ctx.send("❌ Eksik kullanım! Örnek: `!kick @kullanici sebep`")
 
-# 3. !nick Komutu
+# 5. !nick Komutu
 @bot.command(name="nick")
 @commands.has_permissions(manage_nicknames=True)
 async def cmd_nick(ctx, member: discord.Member, *, yeni_isim=None):
@@ -149,7 +199,7 @@ async def cmd_nick(ctx, member: discord.Member, *, yeni_isim=None):
             embed.add_field(name="Yetkili", value=ctx.author.mention, inline=False)
             await log_kanal.send(embed=embed)
     except Exception as e:
-        await ctx.send(f"❌ İsim değiştirilemedi! (Botun yetkisi yetmiyor olabilir)")
+        await ctx.send(f"❌ İsim değiştirilemedi! (Botun yetkisi yetmiyor veya hedef kişi sunucu sahibi)")
 
 @cmd_nick.error
 async def cmd_nick_error(ctx, error):
@@ -157,6 +207,25 @@ async def cmd_nick_error(ctx, error):
         await ctx.send("❌ Bu komut için **Kullanıcı Adlarını Yönet** yetkin olmalı!")
     elif isinstance(error, commands.MissingRequiredArgument):
         await ctx.send("❌ Eksik kullanım! Örnek: `!nick @kullanici YeniIsim`")
+
+# 6. !lock ve !unlock Komutları (Kanalı Kilitleme / Açma)
+@bot.command(name="lock")
+@commands.has_permissions(manage_channels=True)
+async def cmd_lock(ctx):
+    try:
+        await ctx.channel.set_permissions(ctx.guild.default_role, send_messages=False)
+        await ctx.send("🔒 Bu kanal üyelerin mesaj yazmasına **kapatıldı**.")
+    except Exception as e:
+        await ctx.send(f"❌ Kanal kilitlenemedi: {e}")
+
+@bot.command(name="unlock")
+@commands.has_permissions(manage_channels=True)
+async def cmd_unlock(ctx):
+    try:
+        await ctx.channel.set_permissions(ctx.guild.default_role, send_messages=True)
+        await ctx.send("🔓 Bu kanal üyelerin mesaj yazmasına **açıldı**.")
+    except Exception as e:
+        await ctx.send(f"❌ Kanal kilidi açılamadı: {e}")
 
 # ==========================================
 # MESAJ LOG DİNLEYİCİLERİ
