@@ -24,12 +24,47 @@ async def on_ready():
         print(e)
 
 # ==========================================
-# TEMEL & BİLGİ KOMUTLARI
+# TEMEL & YARDIM KOMUTLARI
 # ==========================================
 
 @bot.command(name="ping")
 async def ping(ctx):
     await ctx.send(f"Pong! 🏓 Gecikme: {round(bot.latency * 1000)}ms")
+
+# Marpel'i tamamen bitiren detaylı !help komutu
+@bot.command(name="help")
+async def cmd_help(ctx):
+    embed = discord.Embed(
+        title="🤖 Zephyr Komut Merkezi",
+        description="Marpel'in yerini alan gelişmiş yerli ve milli botunuzun komut listesi:",
+        color=discord.Color.blurple()
+    )
+    embed.add_field(
+        name="🛡️ Moderasyon & Yönetim",
+        value=(
+            "`!ban @üye sebep` - Üyeyi yasaklar.\n"
+            "`!unban [ID]` - Üyenin yasağını kaldırır.\n"
+            "`!kick @üye sebep` - Üyeyi atar.\n"
+            "`!mute @üye [dk]` - Üyeyi susturur.\n"
+            "`!sil [sayı]` - Toplu mesaj siler.\n"
+            "`!nick @üye [isim]` - Kullanıcı adını değiştirir.\n"
+            "`!lock / !unlock` - Kanalı kilitler / açar.\n"
+            "`!logkur` - Tüm log kanallarını otomatik kurar."
+        ),
+        inline=False
+    )
+    embed.add_field(
+        name="📊 Bilgi & Eğlence (Slash ve Normal)",
+        value=(
+            "`/avatar [@üye]` - Profil fotoğrafını gösterir.\n"
+            "`/bitcoin` - Güncel kripto kurlarını gösterir.\n"
+            "`/depremler` - Son deprem listesini gösterir.\n"
+            "`/start` & `/restart` - Bot durum ve yeniden başlatma."
+        ),
+        inline=False
+    )
+    embed.set_footer(text="Zephyr Bot v2.0 - Marpel'e Elveda!")
+    await ctx.send(embed=embed)
 
 @bot.tree.command(name="start", description="Botun durumunu kontrol eder.")
 async def slash_start(interaction: discord.Interaction):
@@ -40,7 +75,6 @@ async def slash_restart(interaction: discord.Interaction):
     await interaction.response.send_message("🔄 Bot yeniden başlatılıyor...", ephemeral=True)
     os.execl(sys.executable, sys.executable, *sys.argv)
 
-# Marpel'den gelen /avatar komutu
 @bot.tree.command(name="avatar", description="İstediğiniz üyenin avatarını gösterir.")
 @discord.app_commands.describe(uye="Avatarı gösterilecek üye")
 async def slash_avatar(interaction: discord.Interaction, uye: discord.Member = None):
@@ -49,7 +83,6 @@ async def slash_avatar(interaction: discord.Interaction, uye: discord.Member = N
     embed.set_image(url=uye.display_avatar.url)
     await interaction.response.send_message(embed=embed)
 
-# Marpel'den gelen /bitcoin (Kripto Kuru) komutu
 @bot.tree.command(name="bitcoin", description="Güncel Bitcoin ve kripto kurlarını gösterir.")
 async def slash_bitcoin(interaction: discord.Interaction):
     await interaction.response.defer()
@@ -68,7 +101,6 @@ async def slash_bitcoin(interaction: discord.Interaction):
             else:
                 await interaction.followup.send("❌ Kurlar şu an alınamıyor.")
 
-# Marpel'den gelen /depremler komutu
 @bot.tree.command(name="depremler", description="Türkiye'deki son depremleri listeler.")
 async def slash_depremler(interaction: discord.Interaction):
     await interaction.response.defer()
@@ -118,7 +150,7 @@ async def logkur_error(ctx, error):
         await ctx.send("❌ Bu komut için Yönetici yetkin olmalı!")
 
 # ==========================================
-# GELİŞMİŞ MODERASYON KOMUTLARI (!ban, !kick, !mute, !sil vb.)
+# MODERASYON KOMUTLARI
 # ==========================================
 
 @bot.command(name="sil")
@@ -161,7 +193,6 @@ async def cmd_kick(ctx, member: discord.Member, *, reason="Sebep belirtilmedi"):
         embed.add_field(name="Sebep", value=reason, inline=True)
         await log_kanal.send(embed=embed)
 
-# Marpel'deki Mute Komutu (Zaman aşımı entegreli)
 @bot.command(name="mute")
 @commands.has_permissions(moderate_members=True)
 async def cmd_mute(ctx, member: discord.Member, dakika: int, *, reason="Sebep yok"):
