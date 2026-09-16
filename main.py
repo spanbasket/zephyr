@@ -5,14 +5,14 @@ from discord.ext import commands
 import aiohttp
 from keep_alive import keep_alive
 
-# Bot ayarları
+# Bot ayarları (Varsayılan help komutunu devre dışı bıraktık)
 intents = discord.Intents.default()
 intents.message_content = True
 intents.guilds = True
 intents.members = True
 intents.voice_states = True
 
-bot = commands.Bot(command_prefix="!", intents=intents, reconnect=True)
+bot = commands.Bot(command_prefix="!", intents=intents, help_command=None, reconnect=True)
 
 @bot.event
 async def on_ready():
@@ -31,7 +31,7 @@ async def on_ready():
 async def ping(ctx):
     await ctx.send(f"Pong! 🏓 Gecikme: {round(bot.latency * 1000)}ms")
 
-# Marpel'i tamamen bitiren detaylı !help komutu
+# Özel Marpel/Zephyr Help Komutu
 @bot.command(name="help")
 async def cmd_help(ctx):
     embed = discord.Embed(
@@ -54,7 +54,7 @@ async def cmd_help(ctx):
         inline=False
     )
     embed.add_field(
-        name="📊 Bilgi & Eğlence (Slash ve Normal)",
+        name="📊 Bilgi & Eğlence (Slash Komutları)",
         value=(
             "`/avatar [@üye]` - Profil fotoğrafını gösterir.\n"
             "`/bitcoin` - Güncel kripto kurlarını gösterir.\n"
