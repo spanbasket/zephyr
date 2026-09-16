@@ -87,6 +87,7 @@ async def cmd_bitcoin(ctx):
                 btc_usd = data['bitcoin']['usd']
                 btc_try = data['bitcoin']['try']
                 eth_usd = data['ethereum']['usd']
+                eth_try = data['ethereum']['try']
                 
                 embed = discord.Embed(title="🪙 Güncel Kripto Kurları", color=discord.Color.gold())
                 embed.add_field(name="Bitcoin (BTC)", value=f"💵 ${btc_usd:,.2f}\n🇹🇷 ₺{btc_try:,.2f}", inline=False)
