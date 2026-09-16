@@ -5,7 +5,7 @@ from discord.ext import commands
 import aiohttp
 from keep_alive import keep_alive
 
-# Bot ayarları (Varsayılan help komutunu devre dışı bıraktık)
+# Bot ayarları (Varsayılan help komutunu kapattık, her şey prefixli)
 intents = discord.Intents.default()
 intents.message_content = True
 intents.guilds = True
@@ -17,26 +17,20 @@ bot = commands.Bot(command_prefix="!", intents=intents, help_command=None, recon
 @bot.event
 async def on_ready():
     print(f"Bot olarak giriş yapıldı: {bot.user}")
-    try:
-        synced = await bot.tree.sync()
-        print(f"Slash komutları senkronize edildi: {len(synced)} komut.")
-    except Exception as e:
-        print(e)
 
 # ==========================================
-# TEMEL & YARDIM KOMUTLARI
+# YARDIM & TEMEL KOMUTLAR
 # ==========================================
 
 @bot.command(name="ping")
 async def ping(ctx):
     await ctx.send(f"Pong! 🏓 Gecikme: {round(bot.latency * 1000)}ms")
 
-# Özel Marpel/Zephyr Help Komutu
 @bot.command(name="help")
 async def cmd_help(ctx):
     embed = discord.Embed(
         title="🤖 Zephyr Komut Merkezi",
-        description="Marpel'in yerini alan gelişmiş yerli ve milli botunuzun komut listesi:",
+        description="Marpel'in yerini alan tam yetkili prefix botunuzun komut listesi:",
         color=discord.Color.blurple()
     )
     embed.add_field(
@@ -54,38 +48,38 @@ async def cmd_help(ctx):
         inline=False
     )
     embed.add_field(
-        name="📊 Bilgi & Eğlence (Slash Komutları)",
+        name="📊 Bilgi & Eğlence",
         value=(
-            "`/avatar [@üye]` - Profil fotoğrafını gösterir.\n"
-            "`/bitcoin` - Güncel kripto kurlarını gösterir.\n"
-            "`/depremler` - Son deprem listesini gösterir.\n"
-            "`/start` & `/restart` - Bot durum ve yeniden başlatma."
+            "`!avatar [@üye]` - Profil fotoğrafını gösterir.\n"
+            "`!bitcoin` - Güncel kripto kurlarını gösterir.\n"
+            "`!depremler` - Son deprem listesini gösterir.\n"
+            "`!start` - Botun durumunu kontrol eder.\n"
+            "`!restart` - Botu yeniden başlatır."
         ),
         inline=False
     )
-    embed.set_footer(text="Zephyr Bot v2.0 - Marpel'e Elveda!")
+    embed.set_footer(text="Zephyr Bot v2.0 - Tamamen Prefix Modu!")
     await ctx.send(embed=embed)
 
-@bot.tree.command(name="start", description="Botun durumunu kontrol eder.")
-async def slash_start(interaction: discord.Interaction):
-    await interaction.response.send_message("🚀 Bot aktif, sistemler kusursuz çalışıyor!", ephemeral=True)
+@bot.command(name="start")
+async def cmd_start(ctx):
+    await ctx.send("🚀 Bot aktif, sistemler kusursuz çalışıyor!")
 
-@bot.tree.command(name="restart", description="Botu tamamen yeniden başlatır.")
-async def slash_restart(interaction: discord.Interaction):
-    await interaction.response.send_message("🔄 Bot yeniden başlatılıyor...", ephemeral=True)
+@bot.command(name="restart")
+@commands.has_permissions(administrator=True)
+async def cmd_restart(ctx):
+    await ctx.send("🔄 Bot yeniden başlatılıyor...")
     os.execl(sys.executable, sys.executable, *sys.argv)
 
-@bot.tree.command(name="avatar", description="İstediğiniz üyenin avatarını gösterir.")
-@discord.app_commands.describe(uye="Avatarı gösterilecek üye")
-async def slash_avatar(interaction: discord.Interaction, uye: discord.Member = None):
-    uye = uye or interaction.user
-    embed = discord.Embed(title=f"{uye.name} adlı kişinin avatarı", color=discord.Color.blurple())
-    embed.set_image(url=uye.display_avatar.url)
-    await interaction.response.send_message(embed=embed)
+@bot.command(name="avatar")
+async def cmd_avatar(ctx, member: discord.Member = None):
+    member = member or ctx.author
+    embed = discord.Embed(title=f"{member.name} adlı kişinin avatarı", color=discord.Color.blurple())
+    embed.set_image(url=member.display_avatar.url)
+    await ctx.send(embed=embed)
 
-@bot.tree.command(name="bitcoin", description="Güncel Bitcoin ve kripto kurlarını gösterir.")
-async def slash_bitcoin(interaction: discord.Interaction):
-    await interaction.response.defer()
+@bot.command(name="bitcoin")
+async def cmd_bitcoin(ctx):
     async with aiohttp.ClientSession() as session:
         async with session.get("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd,try") as resp:
             if resp.status == 200:
@@ -97,13 +91,12 @@ async def slash_bitcoin(interaction: discord.Interaction):
                 embed = discord.Embed(title="🪙 Güncel Kripto Kurları", color=discord.Color.gold())
                 embed.add_field(name="Bitcoin (BTC)", value=f"💵 ${btc_usd:,.2f}\n🇹🇷 ₺{btc_try:,.2f}", inline=False)
                 embed.add_field(name="Ethereum (ETH)", value=f"💵 ${eth_usd:,.2f}", inline=False)
-                await interaction.followup.send(embed=embed)
+                await ctx.send(embed=embed)
             else:
-                await interaction.followup.send("❌ Kurlar şu an alınamıyor.")
+                await ctx.send("❌ Kurlar şu an alınamıyor.")
 
-@bot.tree.command(name="depremler", description="Türkiye'deki son depremleri listeler.")
-async def slash_depremler(interaction: discord.Interaction):
-    await interaction.response.defer()
+@bot.command(name="depremler")
+async def cmd_depremler(ctx):
     async with aiohttp.ClientSession() as session:
         async with session.get("https://api.orhanaydogdu.com.tr/deprem/live.php?limit=5") as resp:
             if resp.status == 200:
@@ -116,9 +109,9 @@ async def slash_depremler(interaction: discord.Interaction):
                     buyukluk = dep.get("mag")
                     tarih = dep.get("date")
                     embed.add_field(name=f"Büyüklük: {buyukluk}", value=f"📍 **Yer:** {yer}\n📅 **Tarih:** {tarih}", inline=False)
-                await interaction.followup.send(embed=embed)
+                await ctx.send(embed=embed)
             else:
-                await interaction.followup.send("❌ Deprem verileri şu an çekilemiyor.")
+                await ctx.send("❌ Deprem verileri şu an çekilemiyor.")
 
 # ==========================================
 # OTOMATİK LOG KURULUMU (!logkur)
