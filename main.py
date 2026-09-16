@@ -27,17 +27,18 @@ async def on_ready():
 async def ping(ctx):
     await ctx.send("Pong! 🏓 Bot aktif ve çalışıyor.")
 
-# Slash komutlar
+# /start Komutu
 @bot.tree.command(name="start", description="Botun durumunu kontrol eder.")
 async def slash_start(interaction: discord.Interaction):
     await interaction.response.send_message("🚀 Bot aktif, komut sistemi çalışıyor!", ephemeral=True)
 
+# /restart Komutu
 @bot.tree.command(name="restart", description="Botu tamamen yeniden başlatır.")
 async def slash_restart(interaction: discord.Interaction):
     await interaction.response.send_message("🔄 Bot yeniden başlatılıyor...", ephemeral=True)
     os.execl(sys.executable, sys.executable, *sys.argv)
 
-# İstediğin özel simgeli log kanal isimleriyle otomatik kurulum (!logkur)
+# Otomatik log kanalları kurma (!logkur)
 @bot.command(name="logkur")
 @commands.has_permissions(administrator=True)
 async def logkur(ctx):
@@ -77,40 +78,82 @@ async def logkur_error(ctx, error):
         await ctx.send("❌ Bu komutu kullanmak için **Yönetici** yetkisine sahip olmalısın!")
 
 # ==========================================
-# BAN KOMUTU VE BAN LOG SİSTEMİ
+# TAB DESTEKLİ SLASH MODERASYON KOMUTLARI
 # ==========================================
-@bot.command(name="ban")
-@commands.has_permissions(ban_members=True)
-async def ban(ctx, member: discord.Member, *, reason=lambda: "Sebep belirtilmedi"):
-    # Sebep string kontrolü
-    if callable(reason):
-        reason = "Sebep belirtilmedi"
-        
+
+# 1. /ban Komutu (Tab ile üye seçmeli)
+@bot.tree.command(name="ban", description="Bir üyeyi sunucudan yasaklar.")
+@discord.app_commands.describe(uye="Yasaklanacak üye", sebep="Yasaklanma sebebi")
+async def slash_ban(interaction: discord.Interaction, uye: discord.Member, sebep: str = "Sebep belirtilmedi"):
+    if not interaction.user.guild_permissions.ban_members:
+        await interaction.response.send_message("❌ Bu komutu kullanmak için **Üyeleri Yasakla** yetkin olmalı!", ephemeral=True)
+        return
+
     try:
-        await member.ban(reason=reason)
-        await ctx.send(f"✅ **{member}** başarıyla sunucudan yasaklandı!")
+        await uye.ban(reason=sebep)
+        await interaction.response.send_message(f"✅ **{uye}** başarıyla yasaklandı!")
         
-        # ⛔・ban-log kanalına otomatik bildir
-        log_kanal = discord.utils.get(ctx.guild.text_channels, name="⛔・ban-log")
+        # Ban log kanalına bildir
+        log_kanal = discord.utils.get(interaction.guild.text_channels, name="⛔・ban-log")
         if log_kanal:
             embed = discord.Embed(title="⛔ Üye Yasaklandı (Ban)", color=discord.Color.dark_red())
-            embed.add_field(name="Yasaklanan Kullanıcı", value=f"{member} (`{member.id}`)", inline=False)
-            embed.add_field(name="Yetkili", value=ctx.author.mention, inline=True)
-            embed.add_field(name="Sebep", value=reason, inline=True)
+            embed.add_field(name="Yasaklanan", value=f"{uye} (`{uye.id}`)", inline=False)
+            embed.add_field(name="Yetkili", value=interaction.user.mention, inline=True)
+            embed.add_field(name="Sebep", value=sebep, inline=True)
             await log_kanal.send(embed=embed)
-            
     except Exception as e:
-        await ctx.send(f"❌ Ban işlemi uygulanamadı! Hata: {e}")
+        await interaction.response.send_message(f"❌ İşlem başarısız! Hata: {e}", ephemeral=True)
 
-@ban.error
-async def ban_error(ctx, error):
-    if isinstance(error, commands.MissingPermissions):
-        await ctx.send("❌ Bu komutu kullanmak için **Üyeleri Yasakla** yetkisine sahip olmalısın!")
-    elif isinstance(error, commands.MissingRequiredArgument):
-        await ctx.send("❌ Lütfen yasaklanacak kişiyi etiketle! Örnek: `!ban @kullanici sebep`")
+# 2. /kick Komutu (Tab ile üye seçmeli)
+@bot.tree.command(name="kick", description="Bir üyeyi sunucudan atar.")
+@discord.app_commands.describe(uye="Atılacak üye", sebep="Atılma sebebi")
+async def slash_kick(interaction: discord.Interaction, uye: discord.Member, sebep: str = "Sebep belirtilmedi"):
+    if not interaction.user.guild_permissions.kick_members:
+        await interaction.response.send_message("❌ Bu komutu kullanmak için **Üyeleri At** yetkin olmalı!", ephemeral=True)
+        return
+
+    try:
+        await uye.kick(reason=sebep)
+        await interaction.response.send_message(f"✅ **{uye}** sunucudan atıldı!")
+        
+        # Ceza/Mod log kanalına bildir
+        log_kanal = discord.utils.get(interaction.guild.text_channels, name="🛑・ceza-log")
+        if log_kanal:
+            embed = discord.Embed(title="👢 Üye Sunucudan Atıldı (Kick)", color=discord.Color.orange())
+            embed.add_field(name="Atılan Üye", value=f"{uye} (`{uye.id}`)", inline=False)
+            embed.add_field(name="Yetkili", value=interaction.user.mention, inline=True)
+            embed.add_field(name="Sebep", value=sebep, inline=True)
+            await log_kanal.send(embed=embed)
+    except Exception as e:
+        await interaction.response.send_message(f"❌ İşlem başarısız! Hata: {e}", ephemeral=True)
+
+# 3. /nick Komutu (Tab ile üye seçmeli ve yeni isim verme)
+@bot.tree.command(name="nick", description="Bir üyenin sunucu içindeki takma adını değiştirir.")
+@discord.app_commands.describe(uye="İsmi değiştirilecek üye", yeni_isim="Yeni takma ad (boş bırakılırsa sıfırlanır)")
+async def slash_nick(interaction: discord.Interaction, uye: discord.Member, yeni_isim: str = None):
+    if not interaction.user.guild_permissions.manage_nicknames:
+        await interaction.response.send_message("❌ Bu komutu kullanmak için **Kullanıcı Adlarını Yönet** yetkin olmalı!", ephemeral=True)
+        return
+
+    try:
+        eski_isim = uye.display_name
+        await uye.edit(nick=yeni_isim)
+        await interaction.response.send_message(f"✅ **{uye.name}** adlı üyenin ismi başarıyla güncellendi!")
+        
+        # İsim log kanalına bildir
+        log_kanal = discord.utils.get(interaction.guild.text_channels, name="✨・isim-log")
+        if log_kanal:
+            embed = discord.Embed(title="✨ Kullanıcı İsmi Değiştirildi", color=discord.Color.blue())
+            embed.add_field(name="Kullanıcı", value=uye.mention, inline=False)
+            embed.add_field(name="Eski İsim", value=eski_isim, inline=True)
+            embed.add_field(name="Yeni İsim", value=yeni_isim or "*(Orijinal İsim)*", inline=True)
+            embed.add_field(name="Yetkili", value=interaction.user.mention, inline=False)
+            await log_kanal.send(embed=embed)
+    except Exception as e:
+        await interaction.response.send_message(f"❌ İsim değiştirilemedi! (Botun yetkisi yetmiyor olabilir ya da hedef kişi botun sahibinden üst rütbede)", ephemeral=True)
 
 # ==========================================
-# DİĞER LOG DİNLEYİCİLERİ
+# MESAJ LOG DİNLEYİCİLERİ
 # ==========================================
 @bot.event
 async def on_message_delete(message):
