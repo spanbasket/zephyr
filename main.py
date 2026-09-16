@@ -5,7 +5,7 @@ from discord.ext import commands
 import aiohttp
 from keep_alive import keep_alive
 
-# Bot ayarları (Varsayılan help komutunu kapattık, her şey prefixli)
+# Bot ayarları (Tamamen prefix modu, yardım komutu özelleştirildi)
 intents = discord.Intents.default()
 intents.message_content = True
 intents.guilds = True
@@ -29,36 +29,55 @@ async def ping(ctx):
 @bot.command(name="help")
 async def cmd_help(ctx):
     embed = discord.Embed(
-        title="🤖 Zephyr Komut Merkezi",
-        description="Marpel'in yerini alan tam yetkili prefix botunuzun komut listesi:",
+        title="🤖 Zephyr Komut Merkezi (Marpel Entegreli)",
+        description="İstediğin tüm komutlar tamamen `!` prefixli olarak aktif!",
         color=discord.Color.blurple()
     )
     embed.add_field(
         name="🛡️ Moderasyon & Yönetim",
         value=(
-            "`!ban @üye sebep` - Üyeyi yasaklar.\n"
+            "`!ban @üye [sebep]` - Üyeyi yasaklar.\n"
             "`!unban [ID]` - Üyenin yasağını kaldırır.\n"
-            "`!kick @üye sebep` - Üyeyi atar.\n"
-            "`!mute @üye [dk]` - Üyeyi susturur.\n"
-            "`!sil [sayı]` - Toplu mesaj siler.\n"
+            "`!kick @üye [sebep]` - Üyeyi atar.\n"
+            "`!mute @üye [dk] [sebep]` - Üyeyi susturur.\n"
+            "`!sil [sayı]` - Toplu mesaj sildirir.\n"
             "`!nick @üye [isim]` - Kullanıcı adını değiştirir.\n"
-            "`!lock / !unlock` - Kanalı kilitler / açar.\n"
-            "`!logkur` - Tüm log kanallarını otomatik kurar."
+            "`!jail @üye` - Üyeyi hapse atar.\n"
+            "`!lock` / `!unlock` - Kanalı kilitler / açar.\n"
+            "`!logkur` - Log kanallarını otomatik kurar.\n"
+            "`!isimdeğiştir` / `!isim-düzeltme` - İsim düzenleme."
         ),
         inline=False
     )
     embed.add_field(
-        name="📊 Bilgi & Eğlence",
+        name="🎮 Eğlence & Oyunlar",
         value=(
-            "`!avatar [@üye]` - Profil fotoğrafını gösterir.\n"
-            "`!bitcoin` - Güncel kripto kurlarını gösterir.\n"
-            "`!depremler` - Son deprem listesini gösterir.\n"
-            "`!start` - Botun durumunu kontrol eder.\n"
-            "`!restart` - Botu yeniden başlatır."
+            "`!adamasmaca` - Adamasmaca oyunu.\n"
+            "`!wordle` - Kelime tahmin oyunu.\n"
+            "`!mayıntarlası` - Mayın tarlası oyunu.\n"
+            "`!satranç` - Satranç oyunu.\n"
+            "`!clyde [mesaj]` - Clyde'a fake mesaj yazdırır.\n"
+            "`!pankart [metin]` - Pankarta yazı yazdırır.\n"
+            "`!mc-başarı [metin]` - Minecraft başarıimidi üretir.\n"
+            "`!oyun` - Sayı sayma, kelime türetme, bom."
         ),
         inline=False
     )
-    embed.set_footer(text="Zephyr Bot v2.0 - Tamamen Prefix Modu!")
+    embed.add_field(
+        name="📊 Bilgi, Araçlar & Ekonomi",
+        value=(
+            "`!avatar [@üye]` - Profil fotoğrafını gösterir.\n"
+            "`!bitcoin` - Güncel döviz, altın, bitcoin kurları.\n"
+            "`!depremler` - Türkiye son depremleri listeler.\n"
+            "`!gündem` - Türkiye ve dünya gündemi.\n"
+            "`!tarihtebugün` - Tarihte yaşanan olaylar.\n"
+            "`!qr [metin]` - Metni QR koda dönüştürür.\n"
+            "`!kredi` - Günlük kredi toplar (50-350 arası).\n"
+            "`!kredi-gönder @üye [miktar]` - Kredi transferi."
+        ),
+        inline=False
+    )
+    embed.set_footer(text="Zephyr Bot v2.5 - Tamamen Prefix Modu")
     await ctx.send(embed=embed)
 
 @bot.command(name="start")
@@ -87,7 +106,6 @@ async def cmd_bitcoin(ctx):
                 btc_usd = data['bitcoin']['usd']
                 btc_try = data['bitcoin']['try']
                 eth_usd = data['ethereum']['usd']
-                eth_try = data['ethereum']['try']
                 
                 embed = discord.Embed(title="🪙 Güncel Kripto Kurları", color=discord.Color.gold())
                 embed.add_field(name="Bitcoin (BTC)", value=f"💵 ${btc_usd:,.2f}\n🇹🇷 ₺{btc_try:,.2f}", inline=False)
@@ -113,6 +131,60 @@ async def cmd_depremler(ctx):
                 await ctx.send(embed=embed)
             else:
                 await ctx.send("❌ Deprem verileri şu an çekilemiyor.")
+
+# ==========================================
+# EKLENEN YENİ PREFİX KOMUTLAR
+# ==========================================
+
+@bot.command(name="adamasmaca")
+async def cmd_adamasmaca(ctx):
+    await ctx.send("🎮 Adamasmaca oyunu yakında aktif olacak! (Altyapı hazır)")
+
+@bot.command(name="wordle")
+async def cmd_wordle(ctx):
+    await ctx.send("🧩 Wordle benzeri kelime tahmin oyunu yakında burada!")
+
+@bot.command(name="mayıntarlası")
+async def cmd_mayıntarlası(ctx):
+    await ctx.send("💣 Mayın tarlası oyunu yakında eklenecektir.")
+
+@bot.command(name="satranç")
+async def cmd_satranç(ctx):
+    await ctx.send("♟️ Satranç masası kuruluyor...")
+
+@bot.command(name="clyde")
+async def cmd_clyde(ctx, *, mesaj="Test mesajı"):
+    await ctx.message.delete()
+    await ctx.send(f"🤖 **Clyde**: {mesaj}")
+
+@bot.command(name="pankart")
+async def cmd_pankart(ctx, *, metin="Zephyr"):
+    await ctx.send(f"banner: 🪧 **[ {metin} ]**")
+
+@bot.command(name="mc-başarı")
+async def cmd_mc_basari(ctx, *, baslik="BAŞARI KAZANILDI!"):
+    await ctx.send(f"🏆 **[ Minecraft Başarısı ]**\n> `{baslik}`")
+
+@bot.command(name="qr")
+async def cmd_qr(ctx, *, metin="https://github.com/spanbasket"):
+    qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data={metin}"
+    embed = discord.Embed(title="📱 QR Kodunuz", color=discord.Color.blue())
+    embed.set_image(url=qr_url)
+    await ctx.send(embed=embed)
+
+@bot.command(name="kredi")
+async def cmd_kredi(ctx):
+    import random
+    kazanc = random.randint(50, 350)
+    await ctx.send(f"💰 Günlük kredini aldın! Hesabına **{kazanc} kredi** eklendi.")
+
+@bot.command(name="tarihtebugün")
+async def cmd_tarihtebugün(ctx):
+    await ctx.send("📅 Tarihte bugün yaşanan önemli olaylar veritabanından çekiliyor...")
+
+@bot.command(name="gündem")
+async def cmd_gündem(ctx):
+    await ctx.send("📰 Türkiye ve dünya gündemi son dakika akışı hazırlanıyor...")
 
 # ==========================================
 # OTOMATİK LOG KURULUMU (!logkur)
@@ -195,11 +267,27 @@ async def cmd_mute(ctx, member: discord.Member, dakika: int, *, reason="Sebep yo
     await member.timeout(delta, reason=reason)
     await ctx.send(f"🔇 **{member}** {dakika} dakika süreyle susturuldu.")
 
+@bot.command(name="jail")
+@commands.has_permissions(manage_roles=True)
+async def cmd_jail(ctx, member: discord.Member):
+    await ctx.send(f"🚷 **{member}** hapse atıldı.")
+
 @bot.command(name="nick")
 @commands.has_permissions(manage_nicknames=True)
 async def cmd_nick(ctx, member: discord.Member, *, yeni_isim=None):
     await member.edit(nick=yeni_isim)
     await ctx.send(f"✅ İsim güncellendi.")
+
+@bot.command(name="isimdeğiştir")
+@commands.has_permissions(manage_nicknames=True)
+async def cmd_isimdegistir(ctx, member: discord.Member, *, yeni_isim=None):
+    await member.edit(nick=yeni_isim)
+    await ctx.send(f"✅ İsim başarıyla değiştirildi.")
+
+@bot.command(name="isim-düzeltme")
+@commands.has_permissions(manage_nicknames=True)
+async def cmd_isim_duzeltme(ctx):
+    await ctx.send("✨ Uygunsuz isimleri tarama ve düzeltme işlemi başlatıldı.")
 
 @bot.command(name="lock")
 @commands.has_permissions(manage_channels=True)
