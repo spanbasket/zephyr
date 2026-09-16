@@ -37,25 +37,25 @@ async def slash_restart(interaction: discord.Interaction):
     await interaction.response.send_message("🔄 Bot yeniden başlatılıyor...", ephemeral=True)
     os.execl(sys.executable, sys.executable, *sys.argv)
 
-# Tek komutla otomatik log kanallarını kurma
+# İstediğin özel simgeli log kanal isimleriyle otomatik kurulum (!logkur)
 @bot.command(name="logkur")
 @commands.has_permissions(administrator=True)
 async def logkur(ctx):
     guild = ctx.guild
     
     log_kanallari = [
-        "🔮-giriş-çıkış-log",
-        "💬-mesaj-log",
-        "✨-isim-log",
-        "💎-seviye-log",
-        "⛔-ban-log",
-        "🚷-jail-log",
-        "📞-talep-log",
-        "🛑-ceza-log",
-        "🔐-mod-log",
-        "🔗-davet-log",
-        "🔊-ses-log",
-        "😊-emoji-log"
+        "🔮・giriş-çıkış-log",
+        "💬・mesaj-log",
+        "✨・isim-log",
+        "💎・seviye-log",
+        "⛔・ban-log",
+        "🚷・jail-log",
+        "📞・talep-log",
+        "🛑・ceza-log",
+        "🔐・mod-log",
+        "🔗・davet-log",
+        "🔊・ses-log",
+        "😊・emoji-log"
     ]
     
     kategori = await guild.create_category("📊 | LOG KANALLARI")
@@ -77,17 +77,47 @@ async def logkur_error(ctx, error):
         await ctx.send("❌ Bu komutu kullanmak için **Yönetici** yetkisine sahip olmalısın!")
 
 # ==========================================
-# ZEPHYR KENDİ LOG SİSTEMİ (Marpel yerine)
+# BAN KOMUTU VE BAN LOG SİSTEMİ
 # ==========================================
+@bot.command(name="ban")
+@commands.has_permissions(ban_members=True)
+async def ban(ctx, member: discord.Member, *, reason=lambda: "Sebep belirtilmedi"):
+    # Sebep string kontrolü
+    if callable(reason):
+        reason = "Sebep belirtilmedi"
+        
+    try:
+        await member.ban(reason=reason)
+        await ctx.send(f"✅ **{member}** başarıyla sunucudan yasaklandı!")
+        
+        # ⛔・ban-log kanalına otomatik bildir
+        log_kanal = discord.utils.get(ctx.guild.text_channels, name="⛔・ban-log")
+        if log_kanal:
+            embed = discord.Embed(title="⛔ Üye Yasaklandı (Ban)", color=discord.Color.dark_red())
+            embed.add_field(name="Yasaklanan Kullanıcı", value=f"{member} (`{member.id}`)", inline=False)
+            embed.add_field(name="Yetkili", value=ctx.author.mention, inline=True)
+            embed.add_field(name="Sebep", value=reason, inline=True)
+            await log_kanal.send(embed=embed)
+            
+    except Exception as e:
+        await ctx.send(f"❌ Ban işlemi uygulanamadı! Hata: {e}")
 
-# 1. Silinen Mesajları Loglama
+@ban.error
+async def ban_error(ctx, error):
+    if isinstance(error, commands.MissingPermissions):
+        await ctx.send("❌ Bu komutu kullanmak için **Üyeleri Yasakla** yetkisine sahip olmalısın!")
+    elif isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send("❌ Lütfen yasaklanacak kişiyi etiketle! Örnek: `!ban @kullanici sebep`")
+
+# ==========================================
+# DİĞER LOG DİNLEYİCİLERİ
+# ==========================================
 @bot.event
 async def on_message_delete(message):
     if message.author.bot:
-        return  # Botların mesajlarını yok say
+        return
     
-    # Sunucudaki "💬-mesaj-log" kanalını bul
-    log_kanal = discord.utils.get(message.guild.text_channels, name="💬-mesaj-log")
+    log_kanal = discord.utils.get(message.guild.text_channels, name="💬・mesaj-log")
     if log_kanal:
         embed = discord.Embed(title="🗑️ Mesaj Silindi", color=discord.Color.red())
         embed.add_field(name="Kullanıcı", value=message.author.mention, inline=True)
@@ -95,13 +125,12 @@ async def on_message_delete(message):
         embed.add_field(name="Silinen Mesaj", value=message.content or "*(Boş veya Sadece Görsel)*", inline=False)
         await log_kanal.send(embed=embed)
 
-# 2. Düzenlenen Mesajları Loglama
 @bot.event
 async def on_message_edit(before, after):
     if before.author.bot or before.content == after.content:
         return
         
-    log_kanal = discord.utils.get(before.guild.text_channels, name="💬-mesaj-log")
+    log_kanal = discord.utils.get(before.guild.text_channels, name="💬・mesaj-log")
     if log_kanal:
         embed = discord.Embed(title="✏️ Mesaj Düzenlendi", color=discord.Color.orange())
         embed.add_field(name="Kullanıcı", value=before.author.mention, inline=True)
